@@ -14,7 +14,7 @@ export const getAllCattle = async (req: Request, res: Response) => {
 
 export const getCattleById = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const cattle = await prisma.cattle.findUnique({
       where: { id },
       include: { 
@@ -69,7 +69,7 @@ export const createCattle = async (req: Request, res: Response) => {
 
 export const updateCattle = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { 
       id: newId, // The generated KTP code from frontend
       name, breed, gender, originType, originName, 
@@ -99,28 +99,31 @@ export const updateCattle = async (req: Request, res: Response) => {
       }
 
       // 2. Update the rest of the fields
+      const updateData: any = {
+        name,
+        breed,
+        gender,
+        originType,
+        originName,
+        eartagNo,
+        damId: damId ? String(damId) : null,
+        damAlias: damAlias ? String(damAlias) : null,
+        photoUrl,
+        pen,
+        status,
+        notes,
+        qrUrl
+      };
+
+      if (estimatedAgeMonths !== undefined) updateData.estimatedAgeMonths = Number(estimatedAgeMonths);
+      if (entryDate !== undefined) updateData.entryDate = new Date(entryDate);
+      if (birthDate !== undefined) updateData.birthDate = new Date(birthDate);
+      if (initialWeightKg !== undefined) updateData.initialWeightKg = Number(initialWeightKg);
+      if (purchasePrice !== undefined) updateData.purchasePrice = Number(purchasePrice);
+
       return await tx.cattle.update({
         where: { id: currentId },
-        data: {
-          name,
-          breed,
-          gender,
-          originType,
-          originName,
-          eartagNo,
-          damId,
-          damAlias,
-          estimatedAgeMonths: estimatedAgeMonths ? Number(estimatedAgeMonths) : undefined,
-          entryDate: entryDate ? new Date(entryDate) : undefined,
-          birthDate: birthDate ? new Date(birthDate) : undefined,
-          initialWeightKg: initialWeightKg ? Number(initialWeightKg) : undefined,
-          purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
-          photoUrl,
-          pen,
-          status,
-          notes,
-          qrUrl
-        }
+        data: updateData
       });
     });
 
@@ -133,7 +136,7 @@ export const updateCattle = async (req: Request, res: Response) => {
 
 export const archiveCattle = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { reason } = req.body;
 
     const cattle = await prisma.cattle.update({
@@ -153,7 +156,7 @@ export const archiveCattle = async (req: Request, res: Response) => {
 
 export const unarchiveCattle = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     const cattle = await prisma.cattle.update({
       where: { id },

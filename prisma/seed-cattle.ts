@@ -26,9 +26,9 @@ async function main() {
 
   for (let i = 1; i <= 10; i++) {
     const id = `BF-2026-${i.toString().padStart(4, '0')}`;
-    const breed = cattleBreeds[Math.floor(Math.random() * cattleBreeds.length)];
-    const pen = pens[Math.floor(Math.random() * pens.length)];
-    const photoUrl = cattlePhotos[Math.floor(Math.random() * cattlePhotos.length)];
+    const breed = cattleBreeds[Math.floor(Math.random() * cattleBreeds.length)] || 'Bali';
+    const pen = pens[Math.floor(Math.random() * pens.length)] || 'Kandang A';
+    const photoUrl = cattlePhotos[Math.floor(Math.random() * cattlePhotos.length)] || null;
     const weight = 250 + Math.random() * 300;
     
     await prisma.cattle.upsert({

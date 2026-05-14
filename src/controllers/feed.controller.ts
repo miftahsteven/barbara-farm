@@ -21,7 +21,7 @@ export const getAllFeedingLogs = async (req: Request, res: Response) => {
 
 export const getFeedingLogsByCattleId = async (req: Request, res: Response) => {
   try {
-    const { cattleId } = req.params;
+    const cattleId = req.params.cattleId as string;
     const logs = await prisma.feedingLog.findMany({
       where: { cattleId },
       orderBy: { feedingDate: 'desc' }
@@ -83,7 +83,7 @@ export const createFeedingLog = async (req: Request, res: Response) => {
 
 export const updateFeedingLog = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const data = req.body;
 
     if (data.feedingDate) data.feedingDate = new Date(data.feedingDate);
@@ -114,7 +114,7 @@ export const updateFeedingLog = async (req: Request, res: Response) => {
 
 export const deleteFeedingLog = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     await prisma.feedingLog.delete({ where: { id } });
     res.json({ message: 'Data pakan berhasil dihapus' });
   } catch (error: any) {

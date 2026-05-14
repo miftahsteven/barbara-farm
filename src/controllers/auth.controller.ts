@@ -49,8 +49,8 @@ export const login = async (req: Request, res: Response) => {
 
     const token = jwt.sign(
       { userId: user.id, role: user.role }, 
-      JWT_SECRET, 
-      { expiresIn: JWT_EXPIRES_IN }
+      JWT_SECRET as string, 
+      { expiresIn: JWT_EXPIRES_IN as any }
     );
     
     return res.json({ 
@@ -70,7 +70,7 @@ export const login = async (req: Request, res: Response) => {
 
 export const setup2FAByUserId = async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.userId as string;
     
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -162,8 +162,8 @@ export const verify2FA = async (req: Request, res: Response) => {
 
     const jwtToken = jwt.sign(
       { userId: user.id, role: user.role }, 
-      JWT_SECRET, 
-      { expiresIn: JWT_EXPIRES_IN }
+      JWT_SECRET as string, 
+      { expiresIn: JWT_EXPIRES_IN as any }
     );
 
     return res.json({ 

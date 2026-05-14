@@ -20,7 +20,7 @@ export const getAllSales = async (req: Request, res: Response) => {
 
 export const getSaleById = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const sale = await prisma.sale.findUnique({
       where: { id },
       include: {
@@ -93,7 +93,7 @@ export const createSale = async (req: Request, res: Response) => {
 
 export const updateSale = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const data = req.body;
 
     if (data.saleDate) data.saleDate = new Date(data.saleDate);
@@ -121,7 +121,7 @@ export const updateSale = async (req: Request, res: Response) => {
 
 export const deleteSale = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     
     // find the sale to get cattleId
     const sale = await prisma.sale.findUnique({ where: { id } });

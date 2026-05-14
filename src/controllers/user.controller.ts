@@ -60,7 +60,7 @@ export const createUser = async (req: Request, res: Response) => {
 
 export const updateUser = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { email, role } = req.body;
 
     const user = await prisma.user.update({
@@ -85,7 +85,7 @@ export const updateUser = async (req: Request, res: Response) => {
 
 export const deleteUser = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     // Prevent deleting self
     if (id === req.user?.userId) {
@@ -103,7 +103,7 @@ export const deleteUser = async (req: Request, res: Response) => {
 
 export const reset2FA = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     await prisma.user.update({
       where: { id },
@@ -122,7 +122,7 @@ export const reset2FA = async (req: Request, res: Response) => {
 
 export const changePassword = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { password } = req.body;
 
     if (!password) {

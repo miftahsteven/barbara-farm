@@ -19,7 +19,7 @@ export const getAllRecords = async (req: Request, res: Response) => {
 
 export const getRecordsByCattleId = async (req: Request, res: Response) => {
   try {
-    const { cattleId } = req.params;
+    const cattleId = req.params.cattleId as string;
     const records = await prisma.healthRecord.findMany({
       where: { cattleId },
       orderBy: { checkDate: 'desc' }
@@ -96,7 +96,7 @@ export const createRecord = async (req: Request, res: Response) => {
 
 export const updateRecord = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const data = req.body;
 
     // Handle date conversions if present
@@ -110,9 +110,9 @@ export const updateRecord = async (req: Request, res: Response) => {
       const currentCheckDate = data.checkDate || record?.checkDate;
       const currentWithdrawal = data.withdrawalDays !== undefined ? Number(data.withdrawalDays) : record?.withdrawalDays;
       
-      if (currentCheckDate && currentWithdrawal > 0) {
+      if (currentCheckDate && (currentWithdrawal || 0) > 0) {
         const date = new Date(currentCheckDate);
-        date.setDate(date.getDate() + currentWithdrawal);
+        date.setDate(date.getDate() + (currentWithdrawal || 0));
         data.safeToSellDate = date;
       } else {
         data.safeToSellDate = null;
@@ -132,7 +132,7 @@ export const updateRecord = async (req: Request, res: Response) => {
 
 export const deleteRecord = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     await prisma.healthRecord.delete({
       where: { id }
     });
