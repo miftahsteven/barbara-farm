@@ -36,7 +36,8 @@ export const createCattle = async (req: Request, res: Response) => {
     const { 
       id, name, breed, gender, originType, originName, 
       entryDate, birthDate, initialWeightKg, purchasePrice, 
-      photoUrl, pen, status, notes, qrUrl, eartagNo, estimatedAgeMonths
+      photoUrl, pen, status, notes, qrUrl, eartagNo, estimatedAgeMonths,
+      damId, damAlias, isDam
     } = req.body;
 
     const cattle = await prisma.cattle.create({
@@ -48,6 +49,9 @@ export const createCattle = async (req: Request, res: Response) => {
         originType,
         originName,
         eartagNo,
+        damId: damId ? String(damId) : null,
+        damAlias: damAlias ? String(damAlias) : null,
+        isDam: isDam === true,
         estimatedAgeMonths: estimatedAgeMonths ? Number(estimatedAgeMonths) : null,
         entryDate: new Date(entryDate),
         birthDate: birthDate ? new Date(birthDate) : null,
