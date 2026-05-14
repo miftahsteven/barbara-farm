@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  password          String
+  role              String   @default("user") // admin, operator, viewer
+  twoFactorEnabled  Boolean  @default(false)
+  twoFactorSecret   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Cattle {
+  id                 String   @id // BF-2026-001
+  eartagNo           String?
+  name               String?
+  breed              String   // Bali, Limousin, Simental, etc.
+  gender             String   // JANTAN, BETINA
+  originType         String   // Supplier, Pasar, Breeding Internal, etc.
+  originName         String?
+  entryDate          DateTime
+  birthDate          DateTime?
+  estimatedAgeMonths Int?
+  initialWeightKg    Float
+  purchasePrice      Float    @default(0)
+  photoUrl           String?
+  pen                String   // Kandang A, B, etc. (Can be a relation later)
+  status             String   @default("AKTIF") // AKTIF, PEMANTAUAN, SIAP_JUAL, TERJUAL, ARSIP
+  archiveReason      String?  // Reason for archiving (Terjual, Mati, etc)
+  notes              String?
+  qrUrl              String?
+  damId              String?   // Mother's ID (ID Indukan)
+  damAlias           String?   // Short alias of the dam used in KTP code
+  isDam              Boolean  @default(false) // Is this cattle a breeding dam?
+  
+  // Self relation for lineage
+  dam                Cattle?   @relation("CattleLineage", fields: [damId], references: [id])
+  offsprings         Cattle[]  @relation("CattleLineage")
+  // Relations
+  growthLogs         GrowthLog[]
+  healthRecords      HealthRecord[]
+  feedingLogs        FeedingLog[]
+  sale               Sale?
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model FeedingGroup {
+  id          String   @id // KDG-A
+  name        String
+  description String?
+  
+  // Relations
+  feedingLogs FeedingLog[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model GrowthLog {
+  id                   String   @id @default(uuid())
+  cattleId             String
+  weighDate            DateTime
+  weightKg             Float
+  chestCircumferenceCm Float?
+  heightCm             Float?
+  bcs                  Int      @default(3) // Body Condition Score 1-5
+  notes                String?
+  
+  // Calculated fields (usually handled by app but stored for history)
+  weightGainKg         Float?
+  daysFromPrevious     Int?
+  adgKgPerDay          Float?
+  status               String   @default("normal") // excellent, normal, slow, attention
+  
+  // Relations
+  cattle               Cattle   @relation(fields: [cattleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model HealthRecord {
+  id              String    @id @default(uuid()) // MED-2026-0001
+  cattleId        String
+  checkDate       DateTime
+  symptoms        String
+  diagnosis       String?
+  severity        String    @default("mild") // mild, moderate, severe, emergency
+  bodyTemperature Float?
+  appetite        String    @default("normal") // normal, reduced, none
+  stoolCondition  String    @default("normal") // normal, soft, watery, bloody, hard
+  actionType      String    // checkup, vaccination, deworming, medicine, wound_care
+  medicineName    String?
+  dosage          String?
+  withdrawalDays  Int       @default(0)
+  safeToSellDate  DateTime?
+  nextCheckupDate DateTime?
+  status          String    @default("active") // active, treatment, recovered, closed
+  recoveryDate    DateTime?
+  notes           String?
+  photoUrl        String?
+  officerName     String?
+  
+  // Relations
+  cattle          Cattle    @relation(fields: [cattleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model FeedingLog {
+  id            String    @id @default(uuid()) // FL-0001
+  feedingDate   DateTime
+  feedingTime   String    // Pagi, Siang, Sore, Malam
+  targetType    String    // SAPI, KELOMPOK
+  cattleId      String?
+  groupId       String?
+  feedType      String    // HIJAUAN, KONSENTRAT, FERMENTASI, SILASE, MINERAL, TAMBAHAN
+  feedName      String
+  portionKg     Float
+  costPerKg     Float     @default(0)
+  totalCost     Float     @default(0)
+  notes         String?
+  status        String    @default("Posted") // Draft, Posted, Voided
+  createdBy     String?
+  
+  // Relations
+  cattle        Cattle?   @relation(fields: [cattleId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  group         FeedingGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Sale {
+  id                        String   @id @default(uuid()) // SALE-2026-0001
+  cattleId                  String   @unique
+  saleDate                  DateTime
+  finalWeightKg             Float
+  salePrice                 Float
+  destination               String   // Jagal, Reseller, Konsumen Langsung, Mitra, Lainnya
+  buyerName                 String?
+  buyerPhone                String?
+  deliveryAddress           String?
+  paymentMethod             String?  // Cash, Transfer, Tempo, DP
+  paymentStatus             String?  // Lunas, DP, Belum Lunas
+  downPayment               Float    @default(0)
+  purchasePrice             Float    @default(0)
+  totalFeedCost             Float    @default(0)
+  totalMedicalCost          Float    @default(0)
+  additionalOperationalCost Float    @default(0)
+  totalProductionCost       Float    @default(0)
+  projectedProfit           Float    @default(0)
+  marginPercent             Float    @default(0)
+  sellingPricePerKg         Float    @default(0)
+  totalAdg                  Float    @default(0)
+  status                    String   @default("Final") // Draft, Final, Dibatalkan
+  notes                     String?
+  weighProofUrl             String?
+  paymentProofUrl           String?
+  
+  // Relations
+  cattle                    Cattle   @relation(fields: [cattleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+}
