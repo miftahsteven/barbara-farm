@@ -75,12 +75,13 @@ export const createSale = async (req: Request, res: Response) => {
       }
     });
 
-    // Update cattle status to ARSIP and add archive reason
+    // Update cattle status to TERJUAL, add archive reason, and sync final weight
     await prisma.cattle.update({
       where: { id: data.cattleId },
       data: { 
-        status: 'ARSIP',
-        archiveReason: 'Terjual'
+        status: 'TERJUAL',
+        archiveReason: 'Terjual',
+        initialWeightKg: Number(data.finalWeightKg) // Sync weight to cattle record
       }
     });
 
