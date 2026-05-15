@@ -174,3 +174,4 @@ model Sale {
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
 }
+

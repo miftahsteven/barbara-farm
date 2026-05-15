@@ -29,8 +29,11 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    // Check Global 2FA Setting from .env
+    const is2FAGloballyEnabled = process.env.ENABLE_2FA !== 'false'; // Default to true unless explicitly 'false'
+
     // Check if 2FA setup is required
-    if (!user.twoFactorSecret) {
+    if (is2FAGloballyEnabled && !user.twoFactorSecret) {
       return res.json({ 
         message: '2FA setup required', 
         requiresSetup2FA: true,
@@ -38,8 +41,8 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    // Check if 2FA is enabled
-    if (user.twoFactorEnabled) {
+    // Check if 2FA is enabled for this user
+    if (is2FAGloballyEnabled && user.twoFactorEnabled) {
       return res.json({ 
         message: '2FA verification required', 
         requires2FA: true,
