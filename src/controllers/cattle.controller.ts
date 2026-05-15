@@ -146,7 +146,7 @@ export const archiveCattle = async (req: Request, res: Response) => {
     const cattle = await prisma.cattle.update({
       where: { id },
       data: {
-        status: 'ARSIP',
+        status: reason === 'Terjual' ? 'TERJUAL' : 'ARSIP',
         archiveReason: reason || 'Lainnya'
       }
     });
