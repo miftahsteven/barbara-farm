@@ -6,6 +6,8 @@ import growthRoutes from './growth.routes.js';
 import healthRoutes from './health.routes.js';
 import feedRoutes from './feed.routes.js';
 import salesRoutes from './sales.routes.js';
+import investorRoutes from './investor.routes.js';
+import settingsRoutes from './settings.routes.js';
 
 const router = Router();
 
@@ -22,5 +24,7 @@ router.use('/growth', growthRoutes);
 router.use('/health', healthRoutes);
 router.use('/feed', feedRoutes);
 router.use('/sales', salesRoutes);
+router.use('/investors', investorRoutes);
+router.use('/settings', settingsRoutes);
 
 export default router;

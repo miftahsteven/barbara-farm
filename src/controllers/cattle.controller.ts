@@ -4,7 +4,8 @@ import prisma from '../lib/prisma.js';
 export const getAllCattle = async (req: Request, res: Response) => {
   try {
     const cattle = await prisma.cattle.findMany({
-      orderBy: { updatedAt: 'desc' }
+      orderBy: { updatedAt: 'desc' },
+      include: { investor: true, insurance: true }
     });
     res.json(cattle);
   } catch (error) {
@@ -19,6 +20,8 @@ export const getCattleById = async (req: Request, res: Response) => {
       where: { id },
       include: { 
         dam: true,
+        investor: true,
+        insurance: true,
         growthLogs: { orderBy: { weighDate: 'desc' }, take: 1 }
       }
     });
@@ -37,32 +40,52 @@ export const createCattle = async (req: Request, res: Response) => {
       id, name, breed, gender, originType, originName, 
       entryDate, birthDate, initialWeightKg, purchasePrice, 
       photoUrl, pen, status, notes, qrUrl, eartagNo, estimatedAgeMonths,
-      damId, damAlias, isDam
+      damId, damAlias, isDam, investorId, insurance
     } = req.body;
 
+    const createData: any = {
+      id,
+      name,
+      breed,
+      gender,
+      originType,
+      originName,
+      eartagNo,
+      damId: damId ? String(damId) : null,
+      damAlias: damAlias ? String(damAlias) : null,
+      isDam: isDam === true,
+      estimatedAgeMonths: estimatedAgeMonths ? Number(estimatedAgeMonths) : null,
+      entryDate: new Date(entryDate),
+      birthDate: birthDate ? new Date(birthDate) : null,
+      initialWeightKg: Number(initialWeightKg),
+      purchasePrice: Number(purchasePrice),
+      photoUrl,
+      pen,
+      status: status || 'AKTIF',
+      notes,
+      qrUrl,
+      investorId: investorId ? String(investorId) : null
+    };
+
+    if (insurance) {
+      createData.insurance = {
+        create: {
+          coverageType: insurance.coverageType,
+          coveragePercent: Number(insurance.coveragePercent || 100),
+          sumAssured: Number(insurance.sumAssured),
+          premiumCost: Number(insurance.premiumCost),
+          premiumPaymentType: insurance.premiumPaymentType,
+          duration: insurance.duration,
+          startDate: insurance.startDate ? new Date(insurance.startDate) : new Date(),
+          endDate: insurance.endDate ? new Date(insurance.endDate) : null,
+          notes: insurance.notes,
+          status: insurance.status || 'AKTIF'
+        }
+      };
+    }
+
     const cattle = await prisma.cattle.create({
-      data: {
-        id,
-        name,
-        breed,
-        gender,
-        originType,
-        originName,
-        eartagNo,
-        damId: damId ? String(damId) : null,
-        damAlias: damAlias ? String(damAlias) : null,
-        isDam: isDam === true,
-        estimatedAgeMonths: estimatedAgeMonths ? Number(estimatedAgeMonths) : null,
-        entryDate: new Date(entryDate),
-        birthDate: birthDate ? new Date(birthDate) : null,
-        initialWeightKg: Number(initialWeightKg),
-        purchasePrice: Number(purchasePrice),
-        photoUrl,
-        pen,
-        status: status || 'AKTIF',
-        notes,
-        qrUrl
-      }
+      data: createData
     });
     res.status(201).json(cattle);
   } catch (error: any) {
@@ -79,7 +102,7 @@ export const updateCattle = async (req: Request, res: Response) => {
       name, breed, gender, originType, originName, 
       entryDate, birthDate, initialWeightKg, purchasePrice, 
       photoUrl, pen, status, notes, qrUrl, eartagNo, estimatedAgeMonths,
-      damId, damAlias
+      damId, damAlias, investorId, insurance
     } = req.body;
 
     // Use a transaction to handle potential ID change safely
@@ -119,11 +142,53 @@ export const updateCattle = async (req: Request, res: Response) => {
         qrUrl
       };
 
+      if (investorId !== undefined) updateData.investorId = investorId ? String(investorId) : null;
       if (estimatedAgeMonths !== undefined) updateData.estimatedAgeMonths = Number(estimatedAgeMonths);
       if (entryDate !== undefined) updateData.entryDate = new Date(entryDate);
       if (birthDate !== undefined) updateData.birthDate = new Date(birthDate);
       if (initialWeightKg !== undefined) updateData.initialWeightKg = Number(initialWeightKg);
       if (purchasePrice !== undefined) updateData.purchasePrice = Number(purchasePrice);
+
+      if (insurance !== undefined) {
+        if (insurance === null) {
+          const existingInsurance = await tx.insurance.findUnique({ where: { cattleId: currentId } });
+          if (existingInsurance) {
+            await tx.insurance.delete({ where: { cattleId: currentId } });
+          }
+        } else {
+          const existingInsurance = await tx.insurance.findUnique({ where: { cattleId: currentId } });
+          
+          const insData: any = {
+            coverageType: insurance.coverageType,
+            coveragePercent: Number(insurance.coveragePercent || 100),
+            sumAssured: Number(insurance.sumAssured),
+            premiumCost: Number(insurance.premiumCost),
+            premiumPaymentType: insurance.premiumPaymentType,
+            duration: insurance.duration,
+            endDate: insurance.endDate ? new Date(insurance.endDate) : null,
+            notes: insurance.notes,
+            status: insurance.notes || 'AKTIF'
+          };
+          if (insurance.startDate) {
+            insData.startDate = new Date(insurance.startDate);
+          }
+
+          if (existingInsurance) {
+            await tx.insurance.update({
+              where: { cattleId: currentId },
+              data: insData
+            });
+          } else {
+            await tx.insurance.create({
+              data: {
+                cattleId: currentId,
+                ...insData,
+                startDate: insurance.startDate ? new Date(insurance.startDate) : new Date()
+              }
+            });
+          }
+        }
+      }
 
       return await tx.cattle.update({
         where: { id: currentId },

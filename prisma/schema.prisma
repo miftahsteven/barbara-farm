@@ -13,6 +13,14 @@ model User {
   role              String   @default("user") // admin, operator, viewer
   twoFactorEnabled  Boolean  @default(false)
   twoFactorSecret   String?
+  
+  // Optional Profile Fields
+  name              String?
+  phone             String?
+  farmName          String?
+  position          String?
+  location          String?
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
@@ -44,10 +52,13 @@ model Cattle {
   dam                Cattle?   @relation("CattleLineage", fields: [damId], references: [id])
   offsprings         Cattle[]  @relation("CattleLineage")
   // Relations
+  investorId         String?   // Optional investor ID
+  investor           Investor? @relation(fields: [investorId], references: [id], onDelete: SetNull)
   growthLogs         GrowthLog[]
   healthRecords      HealthRecord[]
   feedingLogs        FeedingLog[]
   sale               Sale?
+  insurance          Insurance?
   
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -173,5 +184,47 @@ model Sale {
   
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
+}
+
+model Investor {
+  id                 String   @id @default(uuid())
+  name               String
+  email              String   @unique
+  phone              String
+  address            String?
+  profitSharePercent Float    @default(70.0) // Percentage of profit for the investor
+  notes              String?
+  
+  // Relations
+  cattles            Cattle[]
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Insurance {
+  id                  String   @id @default(uuid())
+  cattleId            String   @unique
+  coverageType        String   // KEMATIAN, KESEHATAN_KRITIS, GAGAL_TUMBUH, LAINNYA
+  coveragePercent     Float    @default(100.0) // 70% atau 100% dari modal
+  sumAssured          Float    // Nilai asuransi / modal awal
+  premiumCost         Float    // Biaya premi
+  premiumPaymentType  String   // DIAWAL (Upfront), DIAKHIR (Deducted from Profit)
+  duration            String   // 6_BULAN, 1_TAHUN, 2_TAHUN, SEUMUR_HIDUP
+  startDate           DateTime
+  endDate             DateTime?
+  status              String   @default("AKTIF") // AKTIF, KLAIM, KADALUARSA
+  notes               String?
+  
+  // Relations
+  cattle              Cattle   @relation(fields: [cattleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model SystemSetting {
+  key   String @id
+  value String
 }
 

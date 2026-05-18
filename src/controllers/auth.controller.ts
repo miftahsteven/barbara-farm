@@ -11,10 +11,33 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1d';
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, captchaToken } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    // Google reCAPTCHA Verification
+    if (!captchaToken) {
+      return res.status(400).json({ message: 'Captcha verification is required' });
+    }
+
+    try {
+      const secretKey = '6LfG7O8sAAAAAKZlpoGjlICAcFVIWkTPxX76Wnc7';
+      const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
+      
+      const recaptchaRes = await fetch(verifyUrl, {
+        method: 'POST'
+      });
+      
+      const recaptchaData = await recaptchaRes.json() as { success: boolean };
+
+      if (!recaptchaData.success) {
+        return res.status(400).json({ message: 'Captcha verification failed. Please try again.' });
+      }
+    } catch (err) {
+      console.error('reCAPTCHA verification error:', err);
+      return res.status(500).json({ message: 'Failed to verify Captcha.' });
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
@@ -29,8 +52,9 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Check Global 2FA Setting from .env
-    const is2FAGloballyEnabled = process.env.ENABLE_2FA !== 'false'; // Default to true unless explicitly 'false'
+    // Check Global 2FA Setting from database configuration
+    const global2FASetting = await prisma.systemSetting.findUnique({ where: { key: 'enableGlobal2FA' } });
+    const is2FAGloballyEnabled = global2FASetting ? (global2FASetting.value === 'true') : (process.env.ENABLE_2FA !== 'false');
 
     // Check if 2FA setup is required
     if (is2FAGloballyEnabled && !user.twoFactorSecret) {
@@ -196,6 +220,11 @@ export const getProfile = async (req: Request, res: Response) => {
         email: true,
         role: true,
         twoFactorEnabled: true,
+        name: true,
+        phone: true,
+        farmName: true,
+        position: true,
+        location: true,
         createdAt: true
       }
     });
@@ -211,8 +240,93 @@ export const getProfile = async (req: Request, res: Response) => {
   }
 };
 
+export const updateProfile = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const { name, email, phone, farmName, position, location } = req.body;
+
+    if (email) {
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          email,
+          NOT: { id: userId }
+        }
+      });
+      if (existingUser) {
+        return res.status(400).json({ message: 'Email sudah digunakan oleh pengguna lain' });
+      }
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name,
+        email,
+        phone,
+        farmName,
+        position,
+        location
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        twoFactorEnabled: true,
+        name: true,
+        phone: true,
+        farmName: true,
+        position: true,
+        location: true,
+        createdAt: true
+      }
+    });
+
+    return res.json({ message: 'Profil berhasil diperbarui', user: updatedUser });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 export const logout = async (req: Request, res: Response) => {
   // Since we are using JWT, logout is primarily handled by the client 
   // (deleting the token). On the server, we can just return success.
   return res.json({ message: 'Logged out successfully' });
+};
+
+export const changePasswordOfCurrentUser = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Password saat ini dan password baru wajib diisi' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ message: 'User tidak ditemukan' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ message: 'Password saat ini salah' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword }
+    });
+
+    return res.json({ message: 'Password berhasil diperbarui' });
+  } catch (error) {
+    console.error('Change self password error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
 };
