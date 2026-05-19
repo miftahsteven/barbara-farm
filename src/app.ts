@@ -6,6 +6,10 @@ import { restrictCliAccess } from './middlewares/cli.middleware.js';
 const app = express();
 
 // Middlewares
+app.use((req, res, next) => {
+  console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
 app.use(cors());
 app.use(restrictCliAccess);
 app.use(express.json({ limit: '50mb' }));

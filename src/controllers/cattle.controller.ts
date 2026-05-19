@@ -194,6 +194,9 @@ export const updateCattle = async (req: Request, res: Response) => {
         where: { id: currentId },
         data: updateData
       });
+    }, {
+      maxWait: 15000,
+      timeout: 20000
     });
 
     res.json(result);
