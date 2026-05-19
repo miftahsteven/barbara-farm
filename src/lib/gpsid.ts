@@ -192,7 +192,7 @@ export async function getGPSIDDevicesFromVendor(forceRefresh = false): Promise<a
   }
 
   // 2. Fetch fresh credentials
-  const { token, id } = await getGPSIDCredentials(forceRefresh);
+  const { token, id } = await getGPSIDCredentials(false);
 
   console.log(`Fetching devices from GPS.id (Owner ID: ${id})...`);
 
@@ -252,12 +252,25 @@ export async function getGPSIDDevicesFromVendor(forceRefresh = false): Promise<a
   throw new Error(`Invalid response format from GPS.id: ${JSON.stringify(result)}`);
 }
 
+// Throttling state for force refreshes per IMEI to prevent aggressive vendor rate-limits (429)
+const lastForceRefreshTimes: Record<string, number> = {};
+const FORCE_REFRESH_COOLDOWN_MS = 25000; // 25 seconds cooldown for force refresh requests
+
 /**
  * Fetch a single GPS device detail from the GPS.id vendor API by IMEI.
  */
 export async function getGPSIDDeviceDetailFromVendor(imei: string, forceRefresh = false): Promise<any> {
-  // Check in-memory cache first if not forced
-  if (!forceRefresh && cachedDeviceDetails[imei]) {
+  const nowMs = Date.now();
+  const lastForceTime = lastForceRefreshTimes[imei] || 0;
+  
+  let shouldBypassForce = false;
+  if (forceRefresh && (nowMs - lastForceTime < FORCE_REFRESH_COOLDOWN_MS)) {
+    console.warn(`[GPS.id Guard] Force-refresh request rate limited for IMEI ${imei}. Reusing in-memory cache to protect vendor API.`);
+    shouldBypassForce = true;
+  }
+
+  // Check in-memory cache first if not forced or if force is bypassed/throttled
+  if ((!forceRefresh || shouldBypassForce) && cachedDeviceDetails[imei]) {
     const cached = cachedDeviceDetails[imei]!;
     if (Date.now() - cached.timestamp < DETAIL_CACHE_TTL) {
       console.log(`Returning cached GPS.id detail for IMEI: ${imei} (Age: ${Math.round((Date.now() - cached.timestamp)/1000)}s)`);
@@ -265,7 +278,12 @@ export async function getGPSIDDeviceDetailFromVendor(imei: string, forceRefresh 
     }
   }
 
-  const { token, id } = await getGPSIDCredentials(forceRefresh);
+  // Update force-refresh rate-limiting timestamp on a real vendor call
+  if (forceRefresh && !shouldBypassForce) {
+    lastForceRefreshTimes[imei] = nowMs;
+  }
+
+  const { token, id } = await getGPSIDCredentials(false);
 
   console.log(`Fetching device detail for IMEI: ${imei} from GPS.id (Owner: ${id})...`);
 
@@ -324,4 +342,63 @@ export async function getGPSIDDeviceDetailFromVendor(imei: string, forceRefresh 
 
   throw new Error(`Invalid response format from GPS.id: ${JSON.stringify(result)}`);
 }
+
+/**
+ * Fetch GPS history for a single device from the GPS.id vendor API.
+ */
+export async function getGPSIDDeviceHistoryFromVendor(
+  imei: string,
+  start: string,
+  end: string,
+  page = 1,
+  perPage = 100,
+  forceRefresh = false
+): Promise<any> {
+  const { token, id } = await getGPSIDCredentials(false);
+
+  console.log(`Fetching history for IMEI: ${imei} from ${start} to ${end} (Page: ${page}, Limit: ${perPage}) from GPS.id...`);
+
+  const url = `https://portal.gps.id/backend/seen/public/report/history?device=${imei}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&page=${page}&per_page=${perPage}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'id': id,
+      'X-ID': id,
+      'Accept': 'application/json'
+    }
+  });
+
+  if (response.status === 401) {
+    console.warn("Unauthorized (401) received from GPS.id on history fetch. Force refreshing credentials...");
+    const { token: newToken, id: newId } = await getGPSIDCredentials(true);
+
+    const retryUrl = `https://portal.gps.id/backend/seen/public/report/history?device=${imei}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&page=${page}&per_page=${perPage}`;
+    const retryResponse = await fetch(retryUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${newToken}`,
+        'id': newId,
+        'X-ID': newId,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!retryResponse.ok) {
+      const errorText = await retryResponse.text();
+      throw new Error(`Failed to fetch history from GPS.id on retry: ${retryResponse.status} - ${errorText}`);
+    }
+
+    return await retryResponse.json();
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch history from GPS.id: ${response.status} - ${errorText}`);
+  }
+
+  return await response.json();
+}
+
 

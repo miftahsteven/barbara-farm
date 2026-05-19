@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { getGPSIDCredentials, getGPSIDDevicesFromVendor, getGPSIDDeviceDetailFromVendor } from '../lib/gpsid.js';
+import { getGPSIDCredentials, getGPSIDDevicesFromVendor, getGPSIDDeviceDetailFromVendor, getGPSIDDeviceHistoryFromVendor } from '../lib/gpsid.js';
 
 /**
  * Endpoint to test authentication and get the GPS.id credentials.
@@ -105,7 +105,8 @@ export const getGPSIDDeviceDetail = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'IMEI parameter is required' });
     }
 
-    const deviceDetail = await getGPSIDDeviceDetailFromVendor(imei, false);
+    const forceRefresh = req.query.refresh === 'true';
+    const deviceDetail = await getGPSIDDeviceDetailFromVendor(imei, forceRefresh);
     
     return res.json({
       status: true,
@@ -118,6 +119,44 @@ export const getGPSIDDeviceDetail = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Gagal mengambil detail perangkat dari GPS.id',
+      error: error.message || error
+    });
+  }
+};
+
+/**
+ * Fetch GPS history for a single device from GPS.id by its IMEI.
+ */
+export const getGPSIDDeviceHistory = async (req: Request, res: Response) => {
+  try {
+    const imei = req.params.imei as string;
+    const { start, end, page, per_page } = req.query;
+
+    if (!imei) {
+      return res.status(400).json({ success: false, message: 'IMEI parameter is required' });
+    }
+    if (!start || !end) {
+      return res.status(400).json({ success: false, message: 'Start and end query parameters are required' });
+    }
+
+    const pageNum = page ? parseInt(page as string) : 1;
+    const perPageNum = per_page ? parseInt(per_page as string) : 100;
+
+    const historyData = await getGPSIDDeviceHistoryFromVendor(
+      imei,
+      start as string,
+      end as string,
+      pageNum,
+      perPageNum,
+      false
+    );
+
+    return res.json(historyData);
+  } catch (error: any) {
+    console.error(`Error fetching GPS.id device history for ${req.params.imei}:`, error);
+    return res.status(500).json({
+      success: false,
+      message: 'Gagal mengambil riwayat pergerakan dari GPS.id',
       error: error.message || error
     });
   }
