@@ -87,10 +87,21 @@ export const getGPSIDDevices = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Error fetching GPS.id devices:', error);
-    return res.status(500).json({
+    const errMsg = error.message || String(error);
+    const isRateLimit = errMsg.includes('429') || 
+                        errMsg.toLowerCase().includes('too many requests') || 
+                        errMsg.toLowerCase().includes('rate limit') ||
+                        errMsg.toLowerCase().includes('cooldown');
+                        
+    const status = isRateLimit ? 429 : 500;
+    return res.status(status).json({
+      status: false,
       success: false,
-      message: 'Gagal mengambil data perangkat dari GPS.id',
-      error: error.message || error
+      message: isRateLimit 
+        ? 'Batas limitasi API GPS.id terlampaui. Pihak vendor membatasi permintaan maksimal 5x per 5 menit. Silakan tunggu 1 menit untuk mencoba kembali.'
+        : 'Gagal mengambil data perangkat dari GPS.id',
+      error: errMsg,
+      isRateLimit
     });
   }
 };
@@ -116,10 +127,21 @@ export const getGPSIDDeviceDetail = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error(`Error fetching GPS.id device detail for ${req.params.imei}:`, error);
-    return res.status(500).json({
+    const errMsg = error.message || String(error);
+    const isRateLimit = errMsg.includes('429') || 
+                        errMsg.toLowerCase().includes('too many requests') || 
+                        errMsg.toLowerCase().includes('rate limit') ||
+                        errMsg.toLowerCase().includes('cooldown');
+                        
+    const status = isRateLimit ? 429 : 500;
+    return res.status(status).json({
+      status: false,
       success: false,
-      message: 'Gagal mengambil detail perangkat dari GPS.id',
-      error: error.message || error
+      message: isRateLimit 
+        ? 'Batas limitasi API GPS.id terlampaui. Pihak vendor membatasi pembaruan lokasi maksimal 5x per 5 menit. Silakan tunggu 1 menit untuk mencoba kembali.'
+        : 'Gagal mengambil detail perangkat dari GPS.id',
+      error: errMsg,
+      isRateLimit
     });
   }
 };
@@ -154,10 +176,21 @@ export const getGPSIDDeviceHistory = async (req: Request, res: Response) => {
     return res.json(historyData);
   } catch (error: any) {
     console.error(`Error fetching GPS.id device history for ${req.params.imei}:`, error);
-    return res.status(500).json({
+    const errMsg = error.message || String(error);
+    const isRateLimit = errMsg.includes('429') || 
+                        errMsg.toLowerCase().includes('too many requests') || 
+                        errMsg.toLowerCase().includes('rate limit') ||
+                        errMsg.toLowerCase().includes('cooldown');
+                        
+    const status = isRateLimit ? 429 : 500;
+    return res.status(status).json({
+      status: false,
       success: false,
-      message: 'Gagal mengambil riwayat pergerakan dari GPS.id',
-      error: error.message || error
+      message: isRateLimit 
+        ? 'Batas limitasi API GPS.id terlampaui. Pihak vendor membatasi pemanggilan riwayat pergerakan maksimal 5x per 5 menit. Silakan tunggu 1 menit.'
+        : 'Gagal mengambil riwayat pergerakan dari GPS.id',
+      error: errMsg,
+      isRateLimit
     });
   }
 };

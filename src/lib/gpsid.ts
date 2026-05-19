@@ -254,7 +254,7 @@ export async function getGPSIDDevicesFromVendor(forceRefresh = false): Promise<a
 
 // Throttling state for force refreshes per IMEI to prevent aggressive vendor rate-limits (429)
 const lastForceRefreshTimes: Record<string, number> = {};
-const FORCE_REFRESH_COOLDOWN_MS = 25000; // 25 seconds cooldown for force refresh requests
+const FORCE_REFRESH_COOLDOWN_MS = 60000; // 60 seconds cooldown for force refresh requests
 
 /**
  * Fetch a single GPS device detail from the GPS.id vendor API by IMEI.
