@@ -34,6 +34,48 @@ export const getCattleById = async (req: Request, res: Response) => {
   }
 };
 
+// Public endpoint — no auth required, returns only safe public fields.
+export const getPublicCattleById = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const cattle = await prisma.cattle.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        breed: true,
+        gender: true,
+        status: true,
+        pen: true,
+        photoUrl: true,
+        initialWeightKg: true,
+        notes: true,
+        updatedAt: true,
+        createdAt: true,
+        // Include latest weight from growth logs
+        growthLogs: {
+          select: { weightKg: true, weighDate: true },
+          orderBy: { weighDate: 'desc' },
+          take: 1
+        }
+      }
+    });
+    if (!cattle) {
+      return res.status(404).json({ message: 'Cattle not found' });
+    }
+    // Flatten latest weight for convenience
+    const latestLog = cattle.growthLogs?.[0];
+    const { growthLogs, ...rest } = cattle;
+    res.json({
+      ...rest,
+      latestWeightKg: latestLog?.weightKg ?? null,
+      latestWeighDate: latestLog?.weighDate ?? null,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching cattle detail', error });
+  }
+};
+
 export const createCattle = async (req: Request, res: Response) => {
   try {
     const { 
